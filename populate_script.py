@@ -98,15 +98,24 @@ def create_threads(workers, num_orders):
     # reassing_orders(new_sale_orders, top_partner_id)
 
 
-def reassing_order_generic():
+def reassing_order_generic(limit=80):
     """Use this method directly in odoo shell in order to clean-up process unfinished"""
     top_partner_id = env["res.partner"].search([], order="customer_rank DESC", limit=1).id
     partners_duplicated_ids = env["res.partner"].read_group(
         [], ["name", "id:array_agg"], ["name"], orderby="name_count desc", limit=1
     )[0]["id"]
-    partners_duplicated_ids = sorted(partners_duplicated_ids)[:-100]  # to avoid concurrent if they are recent records
-    orders = env["sale.order"].search([("partner_id", "in", partners_duplicated_ids)])
+    # partners_duplicated_ids = sorted(partners_duplicated_ids)
+    orders = env["sale.order"].search([("partner_id", "in", partners_duplicated_ids)], limit=limit)
     reassing_orders(orders, top_partner_id)
+    delete_partners(partners_duplicated_ids, limit=limit)
+
+def delete_partners(partners_duplicated_ids, limit=80):
+    partners_with_sales_ids = env["sale.order"].search([("partner_id", "in", partners_duplicated_ids)]).mapped("partner_id").ids
+    partners_duplicated_without_sales_ids = list(set(partners_duplicated_ids) - set(partners_with_sales_ids))
+    partners = env["res.partner"].search([("id", "in", partners_duplicated_without_sales_ids)], order="id", limit=limit)
+    _logger.info("partner to delete %s", partners)
+    partners.unlink()
+    env.cr.commit()
 
 
 # max workers supported in my laptop 60 and memory supported 100k orders
