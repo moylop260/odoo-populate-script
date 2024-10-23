@@ -48,7 +48,7 @@ def create_order(env2, partner_id, product_id):
 
 
 def reassing_orders(orders, partner_id):
-    orders.mapped("partner_id")
+    # orders.mapped("partner_id")
     _logger.info("Re-assinging orders %s to partner %s", orders, partner_id)
     orders.with_context(**context_no_mail).write({"partner_id": partner_id})
     orders.env.cr.commit()
