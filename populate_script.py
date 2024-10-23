@@ -104,15 +104,20 @@ def reassing_order_generic(limit=80):
     partners_duplicated_ids = env["res.partner"].read_group(
         [], ["name", "id:array_agg"], ["name"], orderby="name_count desc", limit=1
     )[0]["id"]
-    # partners_duplicated_ids = sorted(partners_duplicated_ids)
+    # partners_duplicated_ids = sorted(partners_duplicated_ids)
     orders = env["sale.order"].search([("partner_id", "in", partners_duplicated_ids)], limit=limit)
     reassing_orders(orders, top_partner_id)
     delete_partners(partners_duplicated_ids, limit=limit)
 
+
 def delete_partners(partners_duplicated_ids, limit=80):
-    partners_with_sales_ids = env["sale.order"].search([("partner_id", "in", partners_duplicated_ids)]).mapped("partner_id").ids
+    partners_with_sales_ids = (
+        env["sale.order"].search([("partner_id", "in", partners_duplicated_ids)]).mapped("partner_id").ids
+    )
     partners_duplicated_without_sales_ids = list(set(partners_duplicated_ids) - set(partners_with_sales_ids))
-    partners = env["res.partner"].search([("id", "in", partners_duplicated_without_sales_ids)], order="id", limit=limit)
+    partners = env["res.partner"].search(
+        [("id", "in", partners_duplicated_without_sales_ids)], order="id", limit=limit
+    )
     _logger.info("partner to delete %s", partners)
     partners.unlink()
     env.cr.commit()
